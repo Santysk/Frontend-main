@@ -1,0 +1,131 @@
+.container {
+  max-width: 700px;
+  margin: 20px auto;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.title {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  font-size: 14px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2592eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25);
+}
+
+.invalid {
+  border-color: #dc2626;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .grid2 { 
+    grid-template-columns: 1fr; 
+  }
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.buttonSave,
+.buttonCancel {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .2s, transform .1s;
+}
+
+.buttonSave {
+  background: #1d4ed8;
+  color: #fff;
+}
+.buttonSave:hover { 
+  background: #183faa; 
+  transform: translateY(-1px);
+}
+.buttonSave:disabled { 
+  opacity: .6; 
+  cursor: not-allowed; 
+}
+
+.buttonCancel {
+  background: #ef4444;
+  color: #fff;
+}
+.buttonCancel:hover { 
+  background: #b91c1c; 
+  transform: translateY(-1px);
+}
+
+/* Fila del switch */
+.switchRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 16px 0;
+  user-select: none;
+  cursor: pointer;
+}
+
+.switchRow input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #16a34a; /* verde bonito */
+}
+
+.switchText {
+  font-size: 0.95rem;
+  color: #111827;
+}

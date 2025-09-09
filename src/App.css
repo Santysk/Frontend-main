@@ -1,0 +1,13 @@
+/* src/App.css */
+
+.app-container {
+  height: 100vh;           /* Altura total de la ventana */
+  width: 100vw;            /* Ancho total de la ventana */
+  display: flex;
+  justify-content: center; /* Centrado horizontal */
+  align-items: center;     /* Centrado vertical */
+  background-color: #e6e8eb;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
