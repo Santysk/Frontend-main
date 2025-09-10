@@ -141,3 +141,5 @@ img, svg{ max-width:100%; height:auto; }
   flex: 1;
   text-align: center;
 }
+
+.pillWarn { color:#991b1b; background:#fee2e2; border-color:#fca5a5; }

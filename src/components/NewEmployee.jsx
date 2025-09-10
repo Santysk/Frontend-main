@@ -28,11 +28,9 @@ export default function NewEmployee({ onCancel, onSave }) {
     let value = v;
 
     if (k === 'nombre' || k === 'apellido' || k === 'cargo' || k === 'departamento') {
-      // Solo letras (con tildes) y espacios. Eliminamos números y símbolos raros.
       value = value.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, '');
     }
     if (k === 'identificacion') {
-      // Solo dígitos
       value = value.replace(/\D/g, '');
     }
     setForm(prev => ({ ...prev, [k]: value }));
@@ -62,15 +60,18 @@ export default function NewEmployee({ onCancel, onSave }) {
       e.identificacion = 'Mínimo 6 dígitos.';
     }
 
-    // Campos opcionales pero (si vienen) sin números
-    if (form.cargo && !LETTERS_REGEX.test(form.cargo.trim())) {
+    if (!form.cargo.trim()) {
+      e.cargo = 'El cargo es obligatorio.';
+    } else if (!LETTERS_REGEX.test(form.cargo.trim())) {
       e.cargo = 'El cargo solo puede contener letras y espacios.';
     }
-    if (form.departamento && !LETTERS_REGEX.test(form.departamento.trim())) {
+
+    if (!form.departamento.trim()) {
+      e.departamento = 'El departamento es obligatorio.';
+    } else if (!LETTERS_REGEX.test(form.departamento.trim())) {
       e.departamento = 'El departamento solo puede contener letras y espacios.';
     }
 
-    // Fechas (opcionales): si hay salida, no debe ser anterior a ingreso
     if (form.fechaIngreso && form.fechaSalida) {
       const fi = new Date(form.fechaIngreso);
       const fs = new Date(form.fechaSalida);
@@ -96,7 +97,6 @@ export default function NewEmployee({ onCancel, onSave }) {
       setSubmitting(true);
       const payload = {
         ...form,
-        // backend espera LocalDate para fechas (yyyy-MM-dd)
         fechaIngreso: form.fechaIngreso || null,
         fechaSalida: form.fechaSalida || null,
       };
@@ -133,9 +133,9 @@ export default function NewEmployee({ onCancel, onSave }) {
         <section className={styles.cardFull}>
           <h3 className={styles.cardTitle}>Requisitos para registrar</h3>
           <ul className={styles.list}>
-            <li><b>Nombre y Apellido:</b> solo letras (se permiten tildes) y espacios.</li>
-            <li><b>Identificación:</b> solo números (mínimo 6 dígitos).</li>
-            <li><b>Cargo y Departamento:</b> si los completas, usa solo letras y espacios.</li>
+            <li><b>Nombre y Apellido:</b> obligatorios, solo letras (se permiten tildes) y espacios.</li>
+            <li><b>Identificación:</b> obligatoria, solo números (mínimo 6 dígitos).</li>
+            <li><b>Cargo y Departamento:</b> obligatorios, solo letras y espacios.</li>
             <li><b>Fechas:</b> formato <code>AAAA-MM-DD</code>. La salida no puede ser anterior a la de ingreso.</li>
           </ul>
         </section>
@@ -152,8 +152,8 @@ export default function NewEmployee({ onCancel, onSave }) {
                 onChange={(e) => setField('nombre', e.target.value)}
                 onBlur={() => onBlur('nombre')}
                 placeholder="Ej: María"
-                inputMode="text"
                 autoComplete="off"
+                maxLength={15}
               />
               {touched.nombre && errors.nombre && <div className={styles.errorMsg}>{errors.nombre}</div>}
             </div>
@@ -167,8 +167,8 @@ export default function NewEmployee({ onCancel, onSave }) {
                 onChange={(e) => setField('apellido', e.target.value)}
                 onBlur={() => onBlur('apellido')}
                 placeholder="Ej: Pérez"
-                inputMode="text"
                 autoComplete="off"
+                maxLength={15}
               />
               {touched.apellido && errors.apellido && <div className={styles.errorMsg}>{errors.apellido}</div>}
             </div>
@@ -184,13 +184,13 @@ export default function NewEmployee({ onCancel, onSave }) {
                 placeholder="Solo números"
                 inputMode="numeric"
                 autoComplete="off"
-                maxLength={20}
+                maxLength={10}
               />
               {touched.identificacion && errors.identificacion && <div className={styles.errorMsg}>{errors.identificacion}</div>}
             </div>
 
             <div>
-              <label className={styles.label}>Cargo</label>
+              <label className={styles.label}>Cargo *</label>
               <input
                 className={styles.input}
                 type="text"
@@ -198,14 +198,14 @@ export default function NewEmployee({ onCancel, onSave }) {
                 onChange={(e) => setField('cargo', e.target.value)}
                 onBlur={() => onBlur('cargo')}
                 placeholder="Ej: Analista"
-                inputMode="text"
                 autoComplete="off"
+                maxLength={40}
               />
               {touched.cargo && errors.cargo && <div className={styles.errorMsg}>{errors.cargo}</div>}
             </div>
 
             <div>
-              <label className={styles.label}>Departamento</label>
+              <label className={styles.label}>Departamento *</label>
               <input
                 className={styles.input}
                 type="text"
@@ -213,14 +213,14 @@ export default function NewEmployee({ onCancel, onSave }) {
                 onChange={(e) => setField('departamento', e.target.value)}
                 onBlur={() => onBlur('departamento')}
                 placeholder="Ej: Tecnología"
-                inputMode="text"
                 autoComplete="off"
+                maxLength={20}
               />
               {touched.departamento && errors.departamento && <div className={styles.errorMsg}>{errors.departamento}</div>}
             </div>
 
             <div>
-              <label className={styles.label}>Fecha de ingreso</label>
+              <label className={styles.label}>Fecha de contratación</label>
               <input
                 className={styles.input}
                 type="date"
@@ -231,7 +231,7 @@ export default function NewEmployee({ onCancel, onSave }) {
             </div>
 
             <div>
-              <label className={styles.label}>Fecha de salida</label>
+              <label className={styles.label}>Finalización de contratación</label>
               <input
                 className={styles.input}
                 type="date"

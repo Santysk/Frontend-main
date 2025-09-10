@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import styles from './NewEmployee.module.css'; // Reusing styles from NewEmployee
+import styles from './EditEmployee.module.css';
 
-export default function EditEmployee({ employee, onSave, onCancel }) {
+export default function EditEmployee({ employee, onSave, onCancel, onDelete }) {
   const [form, setForm] = useState({
     id: '',
     identificacion: '',
@@ -9,20 +9,18 @@ export default function EditEmployee({ employee, onSave, onCancel }) {
     apellido: '',
     cargo: '',
     departamento: '',
-    // 👇 nuevo
     activo: true,
   });
 
   useEffect(() => {
     if (employee) {
       setForm({
-        id: employee.id || '',
-        identificacion: employee.identificacion || '',
-        nombre: employee.nombre || '',
-        apellido: employee.apellido || '',
-        cargo: employee.cargo || '',
-        departamento: employee.departamento || '',
-        // 👇 toma el valor actual; si no viene, por defecto true
+        id: employee.id ?? '',
+        identificacion: employee.identificacion ?? '',
+        nombre: employee.nombre ?? '',
+        apellido: employee.apellido ?? '',
+        cargo: employee.cargo ?? '',
+        departamento: employee.departamento ?? '',
         activo: typeof employee.activo === 'boolean' ? employee.activo : true,
       });
     }
@@ -35,70 +33,105 @@ export default function EditEmployee({ employee, onSave, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (
-      !form.identificacion ||
-      !form.nombre ||
-      !form.apellido ||
-      !form.cargo ||
-      !form.departamento
-    ) {
-      alert('Por favor llena todos los campos obligatorios');
+    if (!form.identificacion || !form.nombre || !form.apellido || !form.cargo || !form.departamento) {
+      alert('Por favor completa todos los campos obligatorios.');
       return;
     }
-    onSave(form); // App.jsx hará updateEmployee(form)
+    onSave?.(form);
+  };
+
+  const handleDelete = () => {
+    if (!onDelete) return;
+    if (window.confirm(`¿Seguro que deseas eliminar a ${form.nombre} ${form.apellido}? Esta acción no se puede deshacer.`)) {
+      onDelete(form.id);
+    }
   };
 
   return (
-    <div className={styles.container}>
-      <h2>Editar Empleado</h2>
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <input
-          name="identificacion"
-          type="text"
-          placeholder="Identificación"
-          value={form.identificacion}
-          onChange={handleChange}
-          required
-          className={styles.input}
-        />
-        <input
-          name="nombre"
-          type="text"
-          placeholder="Nombre"
-          value={form.nombre}
-          onChange={handleChange}
-          required
-          className={styles.input}
-        />
-        <input
-          name="apellido"
-          type="text"
-          placeholder="Apellido"
-          value={form.apellido}
-          onChange={handleChange}
-          required
-          className={styles.input}
-        />
-        <input
-          name="cargo"
-          type="text"
-          placeholder="Cargo"
-          value={form.cargo}
-          onChange={handleChange}
-          required
-          className={styles.input}
-        />
-        <input
-          name="departamento"
-          type="text"
-          placeholder="Departamento"
-          value={form.departamento}
-          onChange={handleChange}
-          required
-          className={styles.input}
-        />
+    <div className={styles.wrapper}>
+      <h2 className={styles.header}>Editar empleado</h2>
 
-        {/* 👇 Toggle de acceso */}
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* fila 1 */}
+        <div className={styles.grid2}>
+          <div className={styles.field}>
+            <label className={styles.label}>Identificación *</label>
+            <input
+              className={styles.input}
+              name="identificacion"
+              type="text"
+              value={form.identificacion}
+              onChange={handleChange}
+              required
+            />
+            <div className={styles.help}>Debe ser única.</div>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>ID (solo lectura)</label>
+            <input
+              className={styles.input}
+              value={form.id}
+              readOnly
+            />
+          </div>
+        </div>
+
+        {/* fila 2 */}
+        <div className={styles.grid2}>
+          <div className={styles.field}>
+            <label className={styles.label}>Nombre *</label>
+            <input
+              className={styles.input}
+              name="nombre"
+              type="text"
+              value={form.nombre}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>Apellido *</label>
+            <input
+              className={styles.input}
+              name="apellido"
+              type="text"
+              value={form.apellido}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+
+        {/* fila 3 */}
+        <div className={styles.grid2}>
+          <div className={styles.field}>
+            <label className={styles.label}>Cargo *</label>
+            <input
+              className={styles.input}
+              name="cargo"
+              type="text"
+              value={form.cargo}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>Departamento *</label>
+            <input
+              className={styles.input}
+              name="departamento"
+              type="text"
+              value={form.departamento}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+
+        {/* acceso */}
         <label className={styles.switchRow}>
           <input
             type="checkbox"
@@ -111,9 +144,19 @@ export default function EditEmployee({ employee, onSave, onCancel }) {
           </span>
         </label>
 
-        <div className={styles.buttons}>
-          <button type="submit" className={styles.buttonSave}>Guardar Cambios</button>
-          <button type="button" className={styles.buttonCancel} onClick={onCancel}>Cancelar</button>
+        {/* acciones */}
+        <div className={styles.actions}>
+          {onDelete && (
+            <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={handleDelete}>
+              Eliminar
+            </button>
+          )}
+          <button type="button" className={`${styles.btn} ${styles.secondary}`} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button type="submit" className={`${styles.btn} ${styles.primary}`}>
+            Guardar cambios
+          </button>
         </div>
       </form>
     </div>
