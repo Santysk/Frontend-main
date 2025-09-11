@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchRegistrosByEmployeeId, fetchEmployeeById } from '../api'; // Assuming these will be created/updated
+import { fetchRegistrosByEmployeeId, fetchEmployeeById } from '../../api'; // Assuming these will be created/updated
 import './ShiftList.css'; // Reusing styles from ShiftList
 
 export default function EmployeeShiftHistory({ employeeId, onBack }) {

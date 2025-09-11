@@ -1,13 +1,20 @@
+// src/App.jsx
 import React, { useEffect, useState } from 'react';
-import Login from './components/login';
-import EmployeeList from './components/EmployeeList';
-import NewEmployee from './components/NewEmployee';
-import RegisterShiftForm from './components/RegisterShiftForm';
-import ShiftList from './components/ShiftList';
-import EditEmployee from './components/EditEmployee';
-import EmployeeShiftHistory from './components/EmployeeShiftHistory';
-import Reports from './components/Reports';
-import { createEmployee, updateEmployee } from './api';
+import Login from './components/Auth/login';
+import EmployeeList from './components/Employees/EmployeeList';
+import NewEmployee from './components/Employees/NewEmployee';
+import RegisterShiftForm from './components/Employees/RegisterEmployeeForm';
+import ShiftList from './components/Shifts/ShiftList';
+import EditEmployee from './components/Employees/EditEmployee';
+import EmployeeShiftHistory from './components/Shifts/EmployeeShiftHistory';
+import Reports from './components/Reports/Reports';
+import {
+  createEmployee,
+  updateEmployee,
+  readKioskSession,
+  persistKioskSession,
+  clearKioskSession,
+} from './api';
 import './App.css';
 
 export default function App() {
@@ -28,15 +35,19 @@ export default function App() {
   // Para refrescar la lista tras agregar/editar
   const [refreshList, setRefreshList] = useState(false);
 
-  // === NUEVO: modo kiosko (login por ID sin rol) ===
-  const [kioskMode, setKioskMode] = useState(false);
-  const [kioskEmpId, setKioskEmpId] = useState(null); // ID que llega desde el login por ID
+  // === MODO KIOSKO: restaurar desde localStorage al arrancar ===
+  const [kioskMode, setKioskMode] = useState(() => readKioskSession().enabled);
+  const [kioskEmpId, setKioskEmpId] = useState(() => readKioskSession().employeeId);
 
-  // Mantener sesión al recargar (si cambia localStorage desde otra pestaña)
+  // Sincronizar si cambia localStorage desde otra pestaña
   useEffect(() => {
     const onStorage = () => {
       const raw = localStorage.getItem('user');
       setUser(raw ? JSON.parse(raw) : null);
+
+      const k = readKioskSession();
+      setKioskMode(k.enabled);
+      setKioskEmpId(k.employeeId);
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -45,32 +56,41 @@ export default function App() {
   // Handler de login (admin): recibe { correo, rol } desde <Login />
   const handleLogin = (data) => {
     setUser(data);   // data = { correo, rol }
+    // salir de kiosko si estuviera activo
+    clearKioskSession();
     setKioskMode(false);
     setKioskEmpId(null);
     setView('list');
   };
 
-  // === NUEVO: handler de login por ID (kiosko) ===
+  // Handler de login por ID (kiosko)
   const handleKioskLogin = (id) => {
+    persistKioskSession(id); // ← guarda en localStorage
     setKioskMode(true);
     setKioskEmpId(id);
     setView('registerShift'); // vamos directo a Registrar Turno
+  };
+
+  // Salir del kiosko (empleado)
+  const leaveKiosk = () => {
+    clearKioskSession();
+    setKioskMode(false);
+    setKioskEmpId(null);
+    setView('list');
   };
 
   // Handler de logout (admin)
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
-    setKioskMode(false);
-    setKioskEmpId(null);
-    setView('list');
+    // también aseguramos salir de kiosko si estaba activo
+    leaveKiosk();
     setEmployeeToEdit(null);
     setEmployeeIdForHistory(null);
   };
 
-  // ======= Rutas públicas (no logueado) =======
+  // ======= Rutas públicas (no logueado NI kiosko) =======
   if (!isLoggedIn && !kioskMode) {
-    // Mostrar login con dos entradas: admin y kiosko
     return <Login onLogin={handleLogin} onKioskLogin={handleKioskLogin} />;
   }
 
@@ -78,17 +98,11 @@ export default function App() {
   if (kioskMode) {
     return (
       <div className="app-container" style={{ padding: 16 }}>
-        {/* Barra simple para salir del kiosko */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-          {/*<button onClick={() => { setKioskMode(false); setKioskEmpId(null); setView('list'); }}>
-            Salir
-          </button>*/}
-        </div>
-
         <RegisterShiftForm
-          initialEmployeeId={kioskEmpId}     // 👈 auto-busca al entrar
-          onCancel={() => { setKioskMode(false); setKioskEmpId(null); setView('list'); }}
-          onSave={() => { /* tras registrar turno, te puedes quedar o salir */ }}
+          initialEmployeeId={kioskEmpId}        // auto-busca al entrar
+          onExit={leaveKiosk}                   // botón "Cerrar Sesión" dentro del formulario
+          onCancel={leaveKiosk}                 // si cancelas, también sales del kiosko
+          onSave={() => { /* puedes quedarte en la misma vista */ }}
         />
       </div>
     );
@@ -114,7 +128,7 @@ export default function App() {
         <EmployeeList
           onLogout={handleLogout}
           onCreateNew={() => setView('new')}
-          onRegisterShift={() => { setKioskMode(false); setKioskEmpId(null); setView('registerShift'); }}
+          onRegisterShift={() => { clearKioskSession(); setKioskMode(false); setKioskEmpId(null); setView('registerShift'); }}
           onViewShifts={() => setView('shiftList')}
           onEditEmployee={(employee) => { setEmployeeToEdit(employee); setView('edit'); }}
           onViewEmployeeHistory={(id) => { setEmployeeIdForHistory(id); setView('employeeShiftHistory'); }}
@@ -160,7 +174,7 @@ export default function App() {
 
       {view === 'registerShift' && (
         <RegisterShiftForm
-          initialEmployeeId={kioskEmpId}     // 👈 también funciona desde admin si quieres precargar
+          initialEmployeeId={kioskEmpId}  // también funciona desde admin si quieres precargar
           onCancel={() => setView('list')}
           onSave={() => { setView('list'); }}
         />

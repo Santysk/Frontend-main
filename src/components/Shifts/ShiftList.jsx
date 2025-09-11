@@ -4,7 +4,7 @@ import {
   exportShiftsPdf,             // todos
   exportShiftsPdfByRange,      // ⬅️ nombre correcto como en tu api.js
   exportEmployeeHistoryPdf      // por empleado
-} from '../api';
+} from '../../api';
 import './ShiftList.css';
 
 export default function ShiftList({ onBack }) {

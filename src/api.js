@@ -1,8 +1,24 @@
-// api.js
-// Usa el MISMO origen que el login. En .env del frontend pon: VITE_API_URL=http://localhost:8080
+// src/api.js
+// Usa el MISMO origen que el login. En .env del frontend pon:
+// VITE_API_URL=http://localhost:8080
 const BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api`;
 
-// Helper: parsea JSON si hay; si no, intenta texto; maneja 204 sin cuerpo.
+/* ======================================================================================
+ * Utilidades comunes (fetch, parseo, etc.)
+ * ====================================================================================*/
+
+/** fetch con timeout para evitar esperas infinitas */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+/** Intenta parsear JSON si hay; si no, retorna texto; maneja 204 sin cuerpo. */
 async function parseResponse(response) {
   const ct = response.headers.get('content-type') || '';
   if (response.status === 204) return null;
@@ -11,125 +27,39 @@ async function parseResponse(response) {
   try { return JSON.parse(text); } catch { return text || null; }
 }
 
-// ================= EMPLEADOS =================
+/** Helper genérico para requests JSON. */
+async function request(path, {
+  method = 'GET',
+  json,
+  headers,
+  timeout = 15000,
+  ...rest
+} = {}) {
+  const opts = {
+    method,
+    headers: {
+      ...(json ? { 'Content-Type': 'application/json' } : {}),
+      ...headers,
+    },
+    ...(json ? { body: JSON.stringify(json) } : {}),
+    ...rest,
+  };
 
-export async function fetchEmployees() {
-  const response = await fetch(`${BASE_URL}/empleados/todos`);
-  if (!response.ok) throw new Error('Error al obtener empleados');
-  return parseResponse(response);
-}
-
-export async function uploadEmployeesCSV(formData) {
-  const response = await fetch(`${BASE_URL}/empleados/upload-csv`, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    const err = await parseResponse(response);
-    throw new Error((err && (err.message || err.error)) || 'Error al subir el archivo CSV.');
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, opts, timeout);
+  if (!res.ok) {
+    const err = await parseResponse(res);
+    throw new Error(err?.error || err?.message || `Error ${res.status}`);
   }
-  return parseResponse(response);
+  return parseResponse(res);
 }
 
-export async function createEmployee(payload) {
-  const resp = await fetch(`${BASE_URL}/empleados/registrar`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await resp.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch {}
-
-  if (!resp.ok) {
-    throw new Error(data?.error || `Error ${resp.status}`);
-  }
-  // si el backend no devuelve JSON, regresamos un objeto de éxito
-  return data || { message: 'Empleado guardado con éxito' };
-}
-
-export async function updateEmployee(employee) {
-  const response = await fetch(`${BASE_URL}/empleados/${employee.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(employee),
-  });
-  if (!response.ok) {
-    const err = await parseResponse(response);
-    throw new Error((err && (err.error || err.message)) || 'Error al actualizar empleado');
-  }
-  return parseResponse(response);
-}
-
-export async function deleteEmployee(id) {
-  const response = await fetch(`${BASE_URL}/empleados/${id}`, { method: 'DELETE' });
-  if (!response.ok) {
-    const err = await parseResponse(response);
-    throw new Error((err && (err.error || err.message)) || 'Error al eliminar empleado');
-  }
-  return parseResponse(response); // puede ser null si 204
-}
-
-// ================= REGISTROS (TURNOS) =================
-
-export async function fetchRegistros() {
-  const response = await fetch(`${BASE_URL}/registros`);
-  if (!response.ok) throw new Error('Error al obtener registros de turno');
-  return parseResponse(response);
-}
-
-export async function createRegistro(registro) {
-  const response = await fetch(`${BASE_URL}/registros`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(registro),
-  });
-  if (!response.ok) {
-    const err = await parseResponse(response);
-    throw new Error((err && (err.error || err.message)) || 'Error al crear registro');
-  }
-  return parseResponse(response);
-}
-
-export async function fetchRegistrosByEmployeeId(employeeId) {
-  const response = await fetch(`${BASE_URL}/registros/empleado/${employeeId}`);
-  if (response.status === 204) return [];
-  if (!response.ok) throw new Error('Error al obtener registros de turno del empleado');
-  return parseResponse(response);
-}
-
-// ================= EMPLEADO POR ID =================
-
-export async function fetchEmployeeById(id) {
-  const response = await fetch(`${BASE_URL}/empleados/${id}`);
-  if (response.status === 204) return null;
-  if (!response.ok) throw new Error('Empleado no encontrado');
-  return parseResponse(response);
-}
-
-// ================= LOGIN (GET, como en tu Login.jsx) =================
-
-export async function loginUser({ correo, contrasena }) {
-  const url = `${BASE_URL}/users/login?correo=${encodeURIComponent(correo)}&contrasena=${encodeURIComponent(contrasena)}`;
-  const response = await fetch(url, { method: 'GET' });
-
-  if (!response.ok) {
-    const err = await parseResponse(response);
-    throw new Error((err && err.error) || 'Error al iniciar sesión');
-  }
-  return parseResponse(response); // { correo, rol }
-}
-
-// ================= REPORTES (PDF) =================
-
-async function downloadPdf(path, fallbackName) {
-  const res = await fetch(`${BASE_URL}${path}`, { method: 'GET' });
+/** Descarga de binarios (PDF) con filename desde Content-Disposition cuando existe. */
+async function downloadPdf(path, fallbackName, { timeout = 60000 } = {}) {
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, { method: 'GET' }, timeout);
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
     throw new Error(txt || 'Error al generar PDF');
   }
-
   const blob = await res.blob();
   const fileUrl = URL.createObjectURL(blob);
 
@@ -148,6 +78,89 @@ async function downloadPdf(path, fallbackName) {
   a.remove();
   URL.revokeObjectURL(fileUrl);
 }
+
+/* ======================================================================================
+ * EMPLEADOS
+ * ====================================================================================*/
+
+export async function fetchEmployees() {
+  return request('/empleados/todos');
+}
+
+export async function uploadEmployeesCSV(formData) {
+  const res = await fetchWithTimeout(`${BASE_URL}/empleados/upload-csv`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await parseResponse(res);
+    throw new Error(err?.message || err?.error || 'Error al subir el archivo CSV.');
+  }
+  return parseResponse(res);
+}
+
+export async function createEmployee(payload) {
+  const data = await request('/empleados/registrar', { method: 'POST', json: payload })
+    .catch((e) => { throw e; });
+  return data || { message: 'Empleado guardado con éxito' };
+}
+
+export async function updateEmployee(employee) {
+  return request(`/empleados/${employee.id}`, { method: 'PUT', json: employee });
+}
+
+export async function deleteEmployee(id) {
+  return request(`/empleados/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchEmployeeById(id) {
+  const res = await fetchWithTimeout(`${BASE_URL}/empleados/${id}`, { method: 'GET' });
+  if (res.status === 204) return null;
+  if (!res.ok) throw new Error('Empleado no encontrado');
+  return parseResponse(res);
+}
+
+/** Activar/Desactivar empleado */
+export async function toggleEmployeeStatus(id, activo) {
+  return request(`/empleados/${id}/estado?activo=${activo}`, { method: 'PATCH' });
+}
+
+/* ======================================================================================
+ * REGISTROS (TURNOS)
+ * ====================================================================================*/
+
+export async function fetchRegistros() {
+  return request('/registros');
+}
+
+export async function createRegistro(registro) {
+  return request('/registros', { method: 'POST', json: registro });
+}
+
+export async function fetchRegistrosByEmployeeId(employeeId) {
+  const res = await fetchWithTimeout(`${BASE_URL}/registros/empleado/${employeeId}`, { method: 'GET' });
+  if (res.status === 204) return [];
+  if (!res.ok) throw new Error('Error al obtener registros de turno del empleado');
+  return parseResponse(res);
+}
+
+/* ======================================================================================
+ * LOGIN
+ * ====================================================================================*/
+
+export async function loginUser({ correo, contrasena }) {
+  const url = `/users/login?correo=${encodeURIComponent(correo)}&contrasena=${encodeURIComponent(contrasena)}`;
+  return request(url, { method: 'GET' }); // { correo, rol }
+}
+
+// Alternativa POST
+export async function loginUserPost({ correo, contrasena }) {
+  return request('/users/login', { method: 'POST', json: { correo, contrasena } });
+}
+
+/* ======================================================================================
+ * REPORTES (PDF)
+ * ====================================================================================*/
 
 export const exportEmployeesPdf = () =>
   downloadPdf('/reports/employees/pdf', 'reporte_empleados.pdf');
@@ -168,11 +181,79 @@ export async function exportShiftsPdfByRange({ from, to } = {}) {
 }
 export { exportShiftsPdfByRange as exportShiftsPdfRange };
 
-export async function toggleEmployeeStatus(id, activo) {
-  const res = await fetch(`${BASE_URL}/empleados/${id}/estado?activo=${activo}`, { method: 'PATCH' });
-  if (!res.ok) {
-    const err = await parseResponse(res);
-    throw new Error((err && (err.error || err.message)) || 'Error al actualizar estado del empleado');
+/* ======================================================================================
+ * SESIÓN DEL SISTEMA (helpers de persistencia en localStorage)
+ * ====================================================================================*/
+
+export function saveAdminSession(data) {
+  try { localStorage.setItem('user', JSON.stringify(data)); } catch {}
+}
+export function readAdminSession() {
+  try {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+export function clearAdminSession() {
+  try { localStorage.removeItem('user'); } catch {}
+}
+
+/** Sesión de KIOSKO (empleado por ID). */
+const KIOSK_MODE_KEY = 'kioskMode';
+const KIOSK_EMP_KEY  = 'kioskEmployeeId';
+
+export function persistKioskSession(employeeId) {
+  try {
+    localStorage.setItem(KIOSK_MODE_KEY, '1');
+    localStorage.setItem(KIOSK_EMP_KEY, String(employeeId));
+  } catch {}
+}
+
+export function readKioskSession() {
+  try {
+    const enabled = localStorage.getItem(KIOSK_MODE_KEY) === '1';
+    const empRaw  = localStorage.getItem(KIOSK_EMP_KEY);
+    const employeeId = empRaw ? Number(empRaw) : null;
+    return { enabled, employeeId };
+  } catch {
+    return { enabled: false, employeeId: null };
   }
-  return parseResponse(res);
+}
+
+export function clearKioskSession() {
+  try {
+    localStorage.removeItem(KIOSK_MODE_KEY);
+    localStorage.removeItem(KIOSK_EMP_KEY);
+  } catch {}
+}
+
+/* ======================================================================================
+ * PERSISTENCIA PARA ADMIN (vista y borrador de "Nuevo Empleado")
+ * ====================================================================================*/
+
+// Guardar / leer / limpiar la última vista del admin (por ejemplo "new")
+export function persistAdminView(view) {
+  try { localStorage.setItem('adminLastView', view); } catch {}
+}
+export function readAdminView() {
+  try { return localStorage.getItem('adminLastView') || null; } catch { return null; }
+}
+export function clearAdminView() {
+  try { localStorage.removeItem('adminLastView'); } catch {}
+}
+
+// Borrador del formulario de "Nuevo Empleado"
+const NEW_EMPLOYEE_DRAFT_KEY = 'newEmployeeDraft';
+
+export function persistNewEmployeeDraft(form) {
+  try { localStorage.setItem(NEW_EMPLOYEE_DRAFT_KEY, JSON.stringify(form || {})); } catch {}
+}
+export function readNewEmployeeDraft() {
+  try {
+    const raw = localStorage.getItem(NEW_EMPLOYEE_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+export function clearNewEmployeeDraft() {
+  try { localStorage.removeItem(NEW_EMPLOYEE_DRAFT_KEY); } catch {}
 }
