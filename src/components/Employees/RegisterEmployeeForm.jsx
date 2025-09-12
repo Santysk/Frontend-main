@@ -123,8 +123,8 @@ export default function RegisterEmployeeForm({ employeeId: employeeIdProp, onExi
             <div className="ep-brand">
               <span className="ep-dot" />
               <div>
-                <div className="ep-title">ROOM_911</div>
-                <div className="ep-sub">Kiosk · Registro de Turno</div>
+                <div className="ep-title">ROOM 911</div>
+                <div className="ep-sub">Registro de Turno</div>
               </div>
             </div>
 

@@ -27,8 +27,14 @@ export default function App() {
   const isLoggedIn = !!user;
   const isAdmin = user?.rol === 'ADMIN';
 
-  // Vistas del panel admin
-  const [view, setView] = useState('list'); // 'list', 'new', 'registerShift', 'shiftList', 'edit', 'employeeShiftHistory', 'reports'
+  // Vistas del panel admin (⬅️ ahora se lee desde localStorage y se persiste)
+  const [view, setView] = useState(() => {
+    return localStorage.getItem('view') || 'list'; // 'list', 'new', 'registerShift', 'shiftList', 'edit', 'employeeShiftHistory', 'reports'
+  });
+  useEffect(() => {
+    localStorage.setItem('view', view);
+  }, [view]);
+
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [employeeIdForHistory, setEmployeeIdForHistory] = useState(null);
 
@@ -48,6 +54,10 @@ export default function App() {
       const k = readKioskSession();
       setKioskMode(k.enabled);
       setKioskEmpId(k.employeeId);
+
+      // también sincronizamos la vista si alguien la cambió en otra pestaña
+      const v = localStorage.getItem('view') || 'list';
+      setView(v);
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -82,6 +92,7 @@ export default function App() {
   // Handler de logout (admin)
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('view'); // ⬅️ limpiar la vista persistida al cerrar sesión
     setUser(null);
     // también aseguramos salir de kiosko si estaba activo
     leaveKiosk();
